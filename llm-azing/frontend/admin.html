@@ -3,39 +3,41 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ThreatShield Admin | Traffic Monitor</title>
+    <title>ThreatShield Admin | Fraud Monitor</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body class="admin-body">
     <nav class="navbar glass-panel">
-      <div class="logo">ThreatShield <span>// ADMIN PANEL</span></div>
-      <div class="status-indicator">● SYSTEM LIVE</div>
+      <div class="logo">ThreatShield <span>// FRAUD CONTROL</span></div>
+      <div class="status-indicator" style="color:#22c55e; font-weight:bold; letter-spacing:1px;">● SYSTEM LIVE</div>
     </nav>
 
     <div class="admin-container">
       <div class="stats-grid">
         <div class="stat-card glass-panel">
-          <div class="stat-label">Total Requests</div>
+          <div class="stat-label">Total Transactions</div>
           <div class="stat-value" id="total-req">0</div>
         </div>
         <div class="stat-card glass-panel border-green">
-          <div class="stat-label">Human Traffic</div>
+          <div class="stat-label">Verified Humans</div>
           <div class="stat-value text-green" id="human-req">0</div>
         </div>
         <div class="stat-card glass-panel border-red">
-          <div class="stat-label">Bots Blocked</div>
+          <div class="stat-label">Fraudulent Bots</div>
           <div class="stat-value text-red" id="bot-req">0</div>
         </div>
       </div>
 
       <div class="log-section glass-panel">
-        <h3>Live Traffic Stream</h3>
+        <h3 style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom:10px;">Live Telemetry Stream</h3>
         <table class="log-table">
           <thead>
             <tr>
               <th>Timestamp</th>
               <th>Type</th>
-              <th>Confidence</th>
+              <th>Rhythm (ms)</th>
+              <th>Entropy Hash</th>
+              <th>Req Time</th>
               <th>Evidence</th>
             </tr>
           </thead>
@@ -46,42 +48,44 @@
 
     <script>
       async function updateDashboard() {
-    try {
-        // Use 127.0.0.1 if localhost isn't resolving correctly
-        const response = await fetch('http://127.0.0.1:8000/stats');
-        if (!response.ok) throw new Error('Backend response not OK');
-        
-        const data = await response.json();
-        console.log("Stats received:", data); // Check your browser console (F12) for this!
-
-        document.getElementById('total-req').innerText = data.total;
-        document.getElementById('human-req').innerText = data.humans;
-        document.getElementById('bot-req').innerText = data.bots;
-
-        const tbody = document.getElementById('log-body');
-        tbody.innerHTML = ''; 
-
-        // Show the 10 most recent attacks
-        data.history.slice(-10).reverse().forEach(entry => {
-            const row = document.createElement('tr');
-            const statusClass = entry.is_bot ? 'text-red' : 'text-green';
-            const typeLabel = entry.is_bot ? '🤖 BOT' : '👤 HUMAN';
+        try {
+            const response = await fetch('http://127.0.0.1:8000/stats');
+            if (!response.ok) throw new Error('Backend response not OK');
             
-            row.innerHTML = `
-                <td>${entry.time}</td>
-                <td class="${statusClass} font-bold">${typeLabel}</td>
-                <td>${entry.confidence}%</td>
-                <td class="font-mono text-small">${entry.reason}</td>
-            `;
-            tbody.appendChild(row);
-        });
-    } catch (e) {
-        console.error("Dashboard Sync Error:", e);
-        document.getElementById('status-text').innerText = "OFFLINE: Check Backend";
-    }
-}
+            const data = await response.json();
 
-      // Auto-refresh every 2 seconds
+            document.getElementById('total-req').innerText = data.total;
+            document.getElementById('human-req').innerText = data.humans;
+            document.getElementById('bot-req').innerText = data.bots;
+
+            const tbody = document.getElementById('log-body');
+            tbody.innerHTML = ''; 
+
+            data.history.slice(-10).reverse().forEach(entry => {
+                const row = document.createElement('tr');
+                const statusClass = entry.is_bot ? 'text-red' : 'text-green';
+                const typeLabel = entry.is_bot ? '🤖 BOT' : '👤 HUMAN';
+                
+                // Safely handle missing data if old logs exist
+                const rhythm = entry.typingRhythm ? Math.round(entry.typingRhythm) : 'N/A';
+                const entropy = entry.browserEntropy ? entry.browserEntropy : 'N/A';
+                const reqTime = entry.requestTiming ? entry.requestTiming + 'ms' : 'N/A';
+                
+                row.innerHTML = `
+                    <td>${entry.time}</td>
+                    <td class="${statusClass} font-bold">${typeLabel}</td>
+                    <td style="color:#fbbf24">${rhythm}</td>
+                    <td style="color:#a855f7; font-family:monospace;">${entropy}</td>
+                    <td>${reqTime}</td>
+                    <td class="font-mono text-small">${entry.reason}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        } catch (e) {
+            console.error("Dashboard Sync Error:", e);
+        }
+      }
+
       setInterval(updateDashboard, 2000);
       updateDashboard();
     </script>

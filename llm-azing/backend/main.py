@@ -12,31 +12,38 @@ class Telemetry(BaseModel):
     mouseMovements: int
     scrollDepth: int
     timeOnPage: int
-    linearityScore: int 
+    linearityScore: int
+    resizeEvents: int = 0
+    pollingRate: float = 0.0
+    typingRhythm: float = 0.0      # NEW: Keystroke dynamics
+    browserEntropy: int = 0        # NEW: Hardware/Software fingerprint
+    requestTiming: int = 0         # NEW: Total ms to click
 
 @app.post("/analyze")
 async def analyze(data: Telemetry, request: Request):
-    # --- 1. GOOD BOT CHECK (Bypass Heuristics) ---
-    # Look for the header injected by legal crawlers/anti-piracy bots
-    is_good_bot = request.headers.get("x-verified-asn") == "TRUE"
+    user_agent = request.headers.get("user-agent", "")
     
-    if is_good_bot:
+    # --- 1. GOOD BOT CHECK ---
+    if "Googlebot" in user_agent:
         db["total"] += 1
-        db["humans"] += 1 # Counting as valid traffic
+        db["humans"] += 1 # Counting legal bots as valid traffic
         entry = {
             "time": datetime.now().strftime("%H:%M:%S"),
             "is_bot": False, 
             "confidence": 100,
-            "reason": "Verified Good Bot (ASN/Google)"
+            "reason": "Verified Good Bot (Googlebot)",
+            "typingRhythm": data.typingRhythm,
+            "browserEntropy": data.browserEntropy,
+            "requestTiming": data.requestTiming
         }
         db["history"].append(entry)
-        # Return a custom flag so the frontend knows it's a friendly bot
         return {"is_bot": False, "is_good_bot": True}
 
     # --- 2. BAD BOT HEURISTICS ---
     human_score = 100
     reasons = []
 
+    # Kinematics & Timing
     if data.linearityScore > 2:
         human_score -= 70
         reasons.append("Non-human Kinematics (Linear)")
@@ -45,16 +52,31 @@ async def analyze(data: Telemetry, request: Request):
         human_score -= 40
         reasons.append("Rapid Interaction")
 
-    # NEW: Detect Selenium/Puppeteer cursor teleportation
+    # Mouse Teleportation / Jitter
     if data.mouseMovements < 10:
-        human_score -= 60  # Massive penalty for instant teleportation
+        human_score -= 60
         reasons.append("Mouse Teleportation")
     elif data.mouseMovements < 40:
         human_score -= 30
         reasons.append("Insufficient Jitter")
 
+    # Passive Signal Check (Window Resizing)
+    if data.resizeEvents > 4:
+        human_score -= 50
+        reasons.append("Unnatural Passive Signaling")
+
+    # Hardware Polling Rate Check
+    # Only analyze if we have enough data points to get a real average
+    if data.mouseMovements > 20:
+        if data.pollingRate > 12.0:
+            human_score -= 40
+            reasons.append(f"Software Polling Rate ({data.pollingRate:.1f}ms)")
+        elif data.pollingRate > 0 and data.pollingRate < 8.0:
+            human_score += 10  # Bonus for verifiable hardware speeds
+
+    # Final scoring evaluation
     is_bot = human_score < 50
-    final_reason = ", ".join(reasons) if reasons else "Natural Curved Movements"
+    final_reason = ", ".join(reasons) if reasons else "Natural Movement"
 
     db["total"] += 1
     db["bots" if is_bot else "humans"] += 1
@@ -62,8 +84,12 @@ async def analyze(data: Telemetry, request: Request):
     entry = {
         "time": datetime.now().strftime("%H:%M:%S"),
         "is_bot": is_bot,
-        "confidence": 100 - human_score if is_bot else human_score,
-        "reason": final_reason
+        # Ensure confidence visually stays between 0 and 100 for the UI
+        "confidence": max(0, 100 - human_score) if is_bot else min(100, human_score),
+        "reason": final_reason,
+        "typingRhythm": data.typingRhythm,
+        "browserEntropy": data.browserEntropy,
+        "requestTiming": data.requestTiming
     }
     db["history"].append(entry)
     
