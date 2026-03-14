@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Threadit - The Front Page of Data</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="sensor.js"></script>
+  </head>
+  <body>
+    <div id="live-tracker" class="glass-panel">
+      <div class="hud-title">🔴 LIVE BIOMETRICS</div>
+      <div class="hud-data">Mouse X: <span id="hud-x">0</span>px</div>
+      <div class="hud-data">Mouse Y: <span id="hud-y">0</span>px</div>
+      <div class="hud-data">
+        Status: <span id="hud-status" style="color: #22c55e">Tracking...</span>
+      </div>
+    </div>
+
+    <div class="video-background">
+      <video autoplay muted loop playsinline>
+        <source
+          src="https://cdn.pixabay.com/video/2020/05/13/38873-421064115_large.mp4"
+          type="video/mp4"
+        />
+      </video>
+      <div class="video-overlay"></div>
+    </div>
+
+    <nav class="navbar glass-panel">
+      <div class="logo">
+        <div class="logo-icon"></div>
+        Threadit <span>// Hackathon Edition</span>
+      </div>
+      <input
+        type="text"
+        class="search-bar"
+        placeholder="🔍 Search for data, posts, or users..."
+      />
+      <div class="user-profile">Deploy Bot Defense</div>
+    </nav>
+
+    <div class="layout">
+      <main class="feed">
+        <div class="post glass-panel slide-up">
+          <div class="vote-column">
+            <div class="upvote">▲</div>
+            <div class="score">42.8k</div>
+            <div class="downvote">▼</div>
+          </div>
+          <div class="post-content">
+            <div class="post-meta">
+              Posted by u/DataScientist22 • 4 hours ago
+            </div>
+            <h2 class="post-title">
+              OpenAI's new architecture leaked? Here is the full breakdown of
+              the neural network.
+            </h2>
+            <p class="post-snippet">
+              I managed to get my hands on the whitepaper before it was taken
+              down. The new model doesn't just use standard transformers, it
+              routes queries through a dynamic MoE (Mixture of Experts) layer
+              that...
+            </p>
+
+            <button class="load-more-btn trap-btn">
+              View Full Thread & Source Code
+            </button>
+          </div>
+        </div>
+
+        <div class="post glass-panel slide-up" style="animation-delay: 0.2s">
+          <div class="vote-column">
+            <div class="upvote">▲</div>
+            <div class="score">15.2k</div>
+            <div class="downvote">▼</div>
+          </div>
+          <div class="post-content">
+            <div class="post-meta">Posted by u/CyberSecNinja • 8 hours ago</div>
+            <h2 class="post-title">
+              Zero-day exploit found in popular web framework. Patch
+              immediately.
+            </h2>
+            <p class="post-snippet">
+              If you are running version 4.2 or lower, your servers are
+              vulnerable to a remote code execution attack. Here is the CVE
+              breakdown and how to mitigate it before the patch drops...
+            </p>
+
+            <button class="load-more-btn trap-btn">Read Full Advisory</button>
+          </div>
+        </div>
+      </main>
+
+      <aside class="sidebar glass-panel">
+        <div class="sidebar-header">🛡️ ThreatShield Engine</div>
+        <p class="sidebar-desc">
+          Analyzing incoming connections for automated scraping behavior.
+        </p>
+
+        <div class="metric-box">
+          <div class="metric-label">Total Events</div>
+          <div class="metric-value" id="ui-mouse">0 px</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">Scroll Depth</div>
+          <div class="metric-value" id="ui-scroll">0 px</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">Read Time</div>
+          <div class="metric-value" id="ui-time">0s</div>
+        </div>
+
+        <div class="status-box" id="status-display">
+          <div id="status-text">Monitoring Session...</div>
+        </div>
+      </aside>
+    </div>
+  </body>
+</html>
