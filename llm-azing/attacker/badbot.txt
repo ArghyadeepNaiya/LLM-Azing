@@ -20,21 +20,6 @@ try:
     driver.maximize_window()
     time.sleep(1)
 
-    # --- DETECTION TRIGGER 3: PASSIVE SIGNAL EMISSION (Window Resizing) ---
-    # Humans resize windows occasionally, but bots doing it with perfect rhythm
-    # is a dead giveaway. This will trigger a resizeEvents penalty in the backend.
-    print("📐 Emitting passive signals: Rhythmic window resizing...")
-    for i in range(3):
-        # Oscillate between two sizes exactly 1 second apart
-        driver.set_window_size(1000, 800)
-        time.sleep(1)
-        driver.set_window_size(1200, 900)
-        time.sleep(1)
-    
-    # Return to normal for the click
-    driver.maximize_window()
-    time.sleep(1)
-
     # --- DETECTION TRIGGER 1: STRAIGHT LINE MOVEMENT ---
     # We move to the button, but in one perfectly straight line.
     # Because sensor.js checks if the last 10 angles are identical,
@@ -47,13 +32,12 @@ try:
     time.sleep(0.5)
 
     # --- DETECTION TRIGGER 2: RAPID INTERACTION ---
-    # We will click the button quickly. Note: the resizing loop added about 6 seconds,
-    # but the time *after* maximizing until click is very fast. (Adjust your backend 
-    # thresholds as needed if you want it to fail the timeOnPage check too).
-    print("⚡ Executing rapid click...")
+    # We will click the button before the 3-second mark.
+    # This triggers the 'Rapid Interaction' penalty in your main.py.
+    print("⚡ Clicking before the 3-second human threshold...")
     target.click()
 
-    print("📡 Payload delivered. Your system should flag 'Non-human Kinematics' and 'Unnatural Passive Signaling'.")
+    print("📡 Payload delivered. Your system should flag 'Non-human Kinematics'.")
     time.sleep(5)
 
 finally:
