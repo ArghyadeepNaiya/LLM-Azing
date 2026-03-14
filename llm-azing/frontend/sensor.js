@@ -3,30 +3,38 @@ const ThreatShield = {
     mouseMovements: 0,
     scrollDepth: 0,
     timeOnPage: 0,
-    isTrustedEvent: true, // NEW: Checks for physical hardware click
-    canvasHash: null, // NEW: GPU Fingerprint
-    memoryLeaks: false, // NEW: Scans for Selenium variables
+    linearityScore: 0, // NEW: Detects if movement is too "perfect"
+    lastCoords: null,
   },
 
+  movementLog: [],
   startTime: Date.now(),
 
   init: function () {
-    console.log("🛡️ ThreatShield Level 3: Advanced Biometrics Active.");
-
-    this.generateGPUFingerprint();
-    this.scanMemoryForAutomation();
-
     document.addEventListener("mousemove", (e) => {
       this.telemetry.mouseMovements++;
-      document.getElementById("ui-mouse").innerText =
-        this.telemetry.mouseMovements + " events";
 
-      const hudX = document.getElementById("hud-x");
-      const hudY = document.getElementById("hud-y");
-      if (hudX && hudY) {
-        hudX.innerText = e.clientX;
-        hudY.innerText = e.clientY;
+      // KINEMATIC ANALYSIS: Check for straight lines
+      if (this.telemetry.lastCoords) {
+        const dx = e.clientX - this.telemetry.lastCoords.x;
+        const dy = e.clientY - this.telemetry.lastCoords.y;
+        const angle = Math.atan2(dy, dx);
+        this.movementLog.push(angle);
+
+        // If the last 10 angles are identical, it's a straight line (Bot)
+        if (this.movementLog.length > 10) {
+          this.movementLog.shift();
+          const isLinear = this.movementLog.every(
+            (a) => a === this.movementLog[0],
+          );
+          if (isLinear) this.telemetry.linearityScore++;
+        }
       }
+      this.telemetry.lastCoords = { x: e.clientX, y: e.clientY };
+
+      // Update HUD
+      document.getElementById("hud-x").innerText = e.clientX;
+      document.getElementById("hud-y").innerText = e.clientY;
     });
 
     document.addEventListener("scroll", () => {
@@ -52,75 +60,34 @@ const ThreatShield = {
     });
   },
 
-  // --- ADVANCED DETECTION METHODS ---
-
-  generateGPUFingerprint: function () {
-    // Silently draws a complex graphic and hashes the pixel data.
-    // Headless cloud servers render this differently than real GPUs.
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    ctx.textBaseline = "top";
-    ctx.font = "14px Arial";
-    ctx.fillStyle = "#f60";
-    ctx.fillRect(125, 1, 62, 20);
-    ctx.fillStyle = "#069";
-    ctx.fillText("ThreatShield AI", 2, 15);
-
-    const dataURI = canvas.toDataURL();
-    let hash = 0;
-    for (let i = 0; i < dataURI.length; i++) {
-      hash = (hash << 5) - hash + dataURI.charCodeAt(i);
-      hash = hash & hash;
-    }
-    this.telemetry.canvasHash = hash.toString();
-    console.log("🛡️ GPU Fingerprint generated.");
-  },
-
-  scanMemoryForAutomation: function () {
-    // Scans the browser's hidden memory for Selenium artifacts
-    for (let key in window) {
-      if (key.startsWith("cdc_") || key === "webdriver") {
-        this.telemetry.memoryLeaks = true;
-      }
-    }
-  },
-
   attachToScraperTraps: function () {
     const buttons = document.querySelectorAll(".trap-btn");
     buttons.forEach((btn) => {
-      btn.addEventListener("click", async (e) => {
-        // THE ULTIMATE TRAP: Check if a physical mouse clicked this, or a script.
-        this.telemetry.isTrustedEvent = e.isTrusted;
-
+      btn.addEventListener("click", async () => {
         document.getElementById("status-text").innerText =
-          "Analyzing deep telemetry...";
-
+          "Analyzing Kinematics...";
         try {
           let response = await fetch("http://localhost:8000/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(this.telemetry),
           });
-
           let result = await response.json();
-
           if (result.is_bot) {
             document.getElementById("status-text").innerText =
-              "🚨 DOM INJECTION BLOCKED 🚨";
+              "🚨 ADVANCED BOT BLOCKED 🚨";
             document.getElementById("status-display").style.borderColor =
               "#ef4444";
-            document.getElementById("status-text").style.color = "#ef4444";
             btn.disabled = true;
           } else {
             document.getElementById("status-text").innerText =
-              "✅ HARDWARE VERIFIED";
+              "✅ HUMAN VERIFIED";
           }
-        } catch (error) {
-          console.error("API Error:", error);
+        } catch (e) {
+          console.error(e);
         }
       });
     });
   },
 };
-
 ThreatShield.init();

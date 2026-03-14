@@ -12,39 +12,33 @@ class Telemetry(BaseModel):
     mouseMovements: int
     scrollDepth: int
     timeOnPage: int
-    isTrustedEvent: bool  # Hardware verification
-    canvasHash: str       # GPU hash
-    memoryLeaks: bool     # Selenium artifacts
+    linearityScore: int  # Captured by our new kinematic sensor
 
 @app.post("/analyze")
 async def analyze(data: Telemetry):
     human_score = 100
     reasons = []
 
-    # 1. HARDWARE VERIFICATION (The Ultimate Check)
-    # If a script triggered the click, it's an instant fail.
-    if data.isTrustedEvent == False:
-        human_score -= 100
-        reasons.append("DOM Injection (Non-Physical Click)")
+    # 1. Kinematic Check: Straight lines are a bot signature
+    if data.linearityScore > 2:
+        human_score -= 70
+        reasons.append("Non-human Kinematics (Linear)")
 
-    # 2. MEMORY LEAK CHECK
-    if data.memoryLeaks:
-        human_score -= 80
-        reasons.append("Automation Framework Detected in Memory")
-
-    # 3. KINEMATICS & ACTIVITY
-    if data.mouseMovements < 5:
+    # 2. Advanced Timing Check: Very consistent behavior
+    if data.timeOnPage < 3:
         human_score -= 40
-        reasons.append("Zero Physical Kinematics")
+        reasons.append("Rapid Interaction")
+
+    # 3. Movement Quantity
+    if data.mouseMovements < 40:
+        human_score -= 30
+        reasons.append("Insufficient Jitter")
 
     is_bot = human_score < 50
-    final_reason = ", ".join(reasons) if reasons else "Trusted Hardware & Kinematics"
+    final_reason = ", ".join(reasons) if reasons else "Natural Curved Movements"
 
     db["total"] += 1
-    if is_bot:
-        db["bots"] += 1
-    else:
-        db["humans"] += 1
+    db["bots" if is_bot else "humans"] += 1
     
     entry = {
         "time": datetime.now().strftime("%H:%M:%S"),
@@ -54,7 +48,6 @@ async def analyze(data: Telemetry):
     }
     db["history"].append(entry)
     
-    print(f"🛡️ Threat Analysis | Score: {human_score} | Flagged: {final_reason}")
     return {"is_bot": is_bot}
 
 @app.get("/stats")

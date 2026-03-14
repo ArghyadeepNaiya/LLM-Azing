@@ -46,44 +46,40 @@
 
     <script>
       async function updateDashboard() {
-        try {
-          // Use 127.0.0.1 if localhost isn't resolving correctly
-          const response = await fetch("http://127.0.0.1:8000/stats");
-          if (!response.ok) throw new Error("Backend response not OK");
+    try {
+        // Use 127.0.0.1 if localhost isn't resolving correctly
+        const response = await fetch('http://127.0.0.1:8000/stats');
+        if (!response.ok) throw new Error('Backend response not OK');
+        
+        const data = await response.json();
+        console.log("Stats received:", data); // Check your browser console (F12) for this!
 
-          const data = await response.json();
-          console.log("Stats received:", data); // Check your browser console (F12) for this!
+        document.getElementById('total-req').innerText = data.total;
+        document.getElementById('human-req').innerText = data.humans;
+        document.getElementById('bot-req').innerText = data.bots;
 
-          document.getElementById("total-req").innerText = data.total;
-          document.getElementById("human-req").innerText = data.humans;
-          document.getElementById("bot-req").innerText = data.bots;
+        const tbody = document.getElementById('log-body');
+        tbody.innerHTML = ''; 
 
-          const tbody = document.getElementById("log-body");
-          tbody.innerHTML = "";
-
-          // Show the 10 most recent attacks
-          data.history
-            .slice(-10)
-            .reverse()
-            .forEach((entry) => {
-              const row = document.createElement("tr");
-              const statusClass = entry.is_bot ? "text-red" : "text-green";
-              const typeLabel = entry.is_bot ? "🤖 BOT" : "👤 HUMAN";
-
-              row.innerHTML = `
+        // Show the 10 most recent attacks
+        data.history.slice(-10).reverse().forEach(entry => {
+            const row = document.createElement('tr');
+            const statusClass = entry.is_bot ? 'text-red' : 'text-green';
+            const typeLabel = entry.is_bot ? '🤖 BOT' : '👤 HUMAN';
+            
+            row.innerHTML = `
                 <td>${entry.time}</td>
                 <td class="${statusClass} font-bold">${typeLabel}</td>
                 <td>${entry.confidence}%</td>
                 <td class="font-mono text-small">${entry.reason}</td>
             `;
-              tbody.appendChild(row);
-            });
-        } catch (e) {
-          console.error("Dashboard Sync Error:", e);
-          document.getElementById("status-text").innerText =
-            "OFFLINE: Check Backend";
-        }
-      }
+            tbody.appendChild(row);
+        });
+    } catch (e) {
+        console.error("Dashboard Sync Error:", e);
+        document.getElementById('status-text').innerText = "OFFLINE: Check Backend";
+    }
+}
 
       // Auto-refresh every 2 seconds
       setInterval(updateDashboard, 2000);
