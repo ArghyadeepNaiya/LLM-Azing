@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ThreatShield | Secure Portal</title>
     <link rel="stylesheet" href="style.css" />
-    <script src="active_defense.js"></script> <script src="sensor.js"></script>
+    <script src="active_defense.js"></script>
+    <script src="sensor.js"></script>
   </head>
   <body>
     <div id="live-tracker" class="glass-panel">
@@ -61,7 +62,13 @@
               <input type="number" class="search-bar auth-input" style="width: 100%;" placeholder="$50,000" />
             </div>
 
-            <button class="load-more-btn trap-btn" style="width: 100%; font-size: 16px; padding: 12px; background: rgba(56, 189, 248, 0.1); border-color: #38bdf8;">
+            <div id="active-challenge" style="display: none; margin-bottom: 20px; padding: 20px; background: rgba(251, 191, 36, 0.1); border: 1px solid #fbbf24; border-radius: 8px; text-align: center;">
+              <p style="color: #fbbf24; font-weight: bold; margin-bottom: 15px;">⚠️ ML Confidence Low. Verification Required.</p>
+              <input type="range" id="kinematic-slider" min="0" max="100" value="0" style="width: 100%; cursor: pointer;">
+              <p style="font-size: 12px; color: #818384; margin-top: 10px;">Slide completely to the right to verify human kinematics</p>
+            </div>
+
+            <button id="auth-btn" class="load-more-btn trap-btn" style="width: 100%; font-size: 16px; padding: 12px; background: rgba(56, 189, 248, 0.1); border-color: #38bdf8;">
               Authorize Transaction
             </button>
           </div>

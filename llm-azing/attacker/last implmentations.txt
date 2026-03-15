@@ -1,0 +1,79 @@
+import time
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.action_chains import ActionChains
+
+print("="*50)
+print("🏴‍☠️ THREATSHIELD ATTACK SIMULATOR")
+print("="*50)
+mode = input("Enter 'legal' to simulate an authorized crawler, or 'illegal' for a fraud bot: ").strip().lower()
+
+chrome_options = Options()
+
+if mode == 'legal':
+    print("\n✅ Configuring as 'Googlebot' / Authorized Partner API...")
+    # Good bots proudly announce their identity via the User-Agent
+    chrome_options.add_argument("user-agent=Googlebot/2.1 (+http://www.google.com/bot.html)")
+else:
+    print("\n🛑 Configuring as Malicious Fraud Bot (Illegal)...")
+    # THE SPOOF: Pretending to be an iPhone to access mobile endpoints
+    chrome_options.add_argument("user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1")
+    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_experimental_option('useAutomationExtension', False)
+
+driver = webdriver.Chrome(options=chrome_options)
+actions = ActionChains(driver)
+
+try:
+    driver.get("http://127.0.0.1:3000/index.html")
+    driver.maximize_window()
+    time.sleep(1)
+
+    if mode == 'illegal':
+        print("⚡ Executing high-speed credential stuffing & wire fraud...")
+        
+        # DEMO TRICK: Inject JS to spoof hardware Hashes AND expose data-center server specs!
+        print("💉 Spoofing Hashes & Exposing Server Hardware Cores (Mismatch)...")
+        driver.execute_script("""
+            ThreatShield.telemetry.canvasHash = 999999999;
+            ThreatShield.telemetry.audioHash = 888888888;
+            Object.defineProperty(navigator, 'hardwareConcurrency', {get: () => 32});
+            Object.defineProperty(navigator, 'deviceMemory', {get: () => 16});
+        """)
+        
+        inputs = driver.find_elements(By.CLASS_NAME, "auth-input")
+        inputs[0].send_keys("admin@threatshield.corp")
+        inputs[1].send_keys("hacked_password_123")
+        inputs[2].send_keys("0xBadGuyWalletAddress")
+        inputs[3].send_keys("500000")
+        
+        target = driver.find_element(By.CLASS_NAME, "trap-btn")
+        actions.move_to_element(target).perform()
+        time.sleep(0.1)
+        target.click()
+
+    else:
+        # --- THE UPDATED LEGAL BOT LOGIC ---
+        print("🔍 Executing authorized automated transaction...")
+        time.sleep(1) # Pause briefly to let the page settle
+        
+        print("📝 Filling out financial forms as a verified partner integration...")
+        inputs = driver.find_elements(By.CLASS_NAME, "auth-input")
+        
+        # We fill it with "trusted" sounding data for the visual effect
+        inputs[0].send_keys("partner_api@threatshield.corp")
+        inputs[1].send_keys("authorized_secure_token_999")
+        inputs[2].send_keys("0xTrustedBankGateway")
+        inputs[3].send_keys("1000")
+        
+        time.sleep(1) # Give the judges a second to see the text in the fields
+        
+        target = driver.find_element(By.CLASS_NAME, "trap-btn")
+        target.click()
+
+    print("📡 Payload delivered! Check the ThreatShield Admin Dashboard.")
+    time.sleep(6) 
+
+finally:
+    driver.quit()

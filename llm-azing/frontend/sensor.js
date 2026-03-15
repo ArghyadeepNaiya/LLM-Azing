@@ -10,7 +10,10 @@ const ThreatShield = {
     browserEntropy: 0, 
     requestTiming: 0,
     canvasHash: 0,     
-    audioHash: 0,      // NEW: Audio Processing Fingerprint
+    audioHash: 0,      
+    hardwareMismatch: false, 
+    forceChallenge: false, 
+    authClickCount: 0, // NEW: Tracks rapid clicks on the authorize button
     
     lastCoords: null,
     lastMouseTime: 0,
@@ -44,7 +47,6 @@ const ThreatShield = {
     return Math.abs(hash);
   },
 
-  // NEW: Generates a silent audio wave and hashes how the browser mathematically compresses it
   generateAudioHash: async function() {
     try {
         const AudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
@@ -72,16 +74,30 @@ const ThreatShield = {
         }
         return Math.floor(hash * 10000000);
     } catch (e) {
-        return 0; // Audio API blocked or unavailable
+        return 0; 
     }
   },
 
   init: function () {
+    // Session Storage tracking for the "Uncertainty" trigger (4 reloads)
+    let reloads = parseInt(sessionStorage.getItem('threatshield_reloads') || '0');
+    reloads++;
+    sessionStorage.setItem('threatshield_reloads', reloads.toString());
+    
+    if (reloads >= 4) {
+        this.telemetry.forceChallenge = true;
+    }
+
     document.addEventListener("DOMContentLoaded", async () => {
       
-      // Hardware & Browser Fingerprinting
+      const ua = navigator.userAgent.toLowerCase();
+      const isMobile = /iphone|ipad|android|mobile/.test(ua);
+      const cores = navigator.hardwareConcurrency || 4;
+      const memory = navigator.deviceMemory || 4;
+      this.telemetry.hardwareMismatch = isMobile && (cores > 8 || memory > 8);
+      
       this.telemetry.canvasHash = this.generateCanvasHash();
-      this.telemetry.audioHash = await this.generateAudioHash(); // Fetch Audio Hash
+      this.telemetry.audioHash = await this.generateAudioHash(); 
       
       const nav = window.navigator;
       const entropyStr = `${nav.userAgent}|${nav.language}|${nav.hardwareConcurrency}|${nav.deviceMemory}|${screen.width}x${screen.height}|${screen.colorDepth}`;
@@ -97,7 +113,6 @@ const ThreatShield = {
       if(hudEntropy) hudEntropy.innerText = this.telemetry.browserEntropy;
       if(uiEntropy) uiEntropy.innerText = this.telemetry.browserEntropy;
 
-      // Typing Rhythm
       const inputs = document.querySelectorAll(".auth-input");
       inputs.forEach(input => {
         input.addEventListener("keydown", (e) => {
@@ -168,6 +183,53 @@ const ThreatShield = {
     const buttons = document.querySelectorAll(".trap-btn");
     buttons.forEach((btn) => {
       btn.addEventListener("click", async () => {
+        
+        // NEW: Increment the click counter. If they mash the button 4+ times, trigger the trap!
+        this.telemetry.authClickCount++;
+        if (this.telemetry.authClickCount >= 4) {
+            this.telemetry.forceChallenge = true;
+        }
+
+        // ==========================================
+        // THE "ML UNCERTAINTY" TRAP INTERCEPT
+        // ==========================================
+        if (this.telemetry.forceChallenge) {
+            const statusText = document.getElementById("status-text");
+            const statusDisplay = document.getElementById("status-display");
+            
+            // 1. Alert the UI that the ML is struggling
+            statusText.innerText = "🟡 ML CONFIDENCE: 48% (UNCERTAIN)";
+            statusText.style.color = "#fbbf24";
+            statusDisplay.style.borderColor = "#fbbf24";
+            
+            // 2. Hide the button and show the slider challenge
+            btn.style.display = "none";
+            document.getElementById("active-challenge").style.display = "block";
+            
+            // 3. Listen for the slider to reach 100
+            const slider = document.getElementById("kinematic-slider");
+            slider.addEventListener("input", (e) => {
+                if (e.target.value == 100) {
+                    // Challenge Passed! Reset everything.
+                    this.telemetry.forceChallenge = false;
+                    this.telemetry.authClickCount = 0; // Reset the rapid-click counter
+                    sessionStorage.setItem('threatshield_reloads', '0'); // Reset reload counter
+                    
+                    document.getElementById("active-challenge").style.display = "none";
+                    btn.style.display = "block";
+                    
+                    statusText.innerText = "✅ Kinematics verified. Finalizing...";
+                    statusText.style.color = "#22c55e";
+                    statusDisplay.style.borderColor = "#22c55e";
+                    
+                    // Programmatically click the button again to continue the normal auth flow
+                    setTimeout(() => { btn.click(); }, 500); 
+                }
+            });
+            return; // STOP execution here until they finish the slider!
+        }
+        // ==========================================
+
         this.telemetry.requestTiming = Math.round(performance.now() - this.startTime);
         
         const reqUi = document.getElementById("ui-req-time");
@@ -196,7 +258,8 @@ const ThreatShield = {
                 browserEntropy: this.telemetry.browserEntropy,
                 requestTiming: this.telemetry.requestTiming,
                 canvasHash: this.telemetry.canvasHash,
-                audioHash: this.telemetry.audioHash  // SENDING AUDIO HASH
+                audioHash: this.telemetry.audioHash,
+                hardwareMismatch: this.telemetry.hardwareMismatch 
             }),
           });
           
@@ -211,7 +274,6 @@ const ThreatShield = {
             }
             btn.disabled = true;
             
-            // Deploy Active Defense Trap
             if (typeof CounterStrike !== 'undefined') {
                 CounterStrike.deployTrap();
             }
