@@ -35,9 +35,9 @@
             <tr>
               <th>Timestamp</th>
               <th>Type</th>
-              <th>Rhythm (ms)</th>
-              <th>Entropy Hash</th>
-              <th>Req Time</th>
+              <th>Rhythm</th>
+              <th>Canvas Hash (GPU)</th>
+              <th>Audio Hash (DAC)</th>
               <th>Evidence</th>
             </tr>
           </thead>
@@ -66,17 +66,20 @@
                 const statusClass = entry.is_bot ? 'text-red' : 'text-green';
                 const typeLabel = entry.is_bot ? '🤖 BOT' : '👤 HUMAN';
                 
-                // Safely handle missing data if old logs exist
-                const rhythm = entry.typingRhythm ? Math.round(entry.typingRhythm) : 'N/A';
-                const entropy = entry.browserEntropy ? entry.browserEntropy : 'N/A';
-                const reqTime = entry.requestTiming ? entry.requestTiming + 'ms' : 'N/A';
+                const rhythm = entry.typingRhythm ? Math.round(entry.typingRhythm) + 'ms' : '0ms';
+                const canvas = entry.canvasHash ? entry.canvasHash : 'N/A';
+                const audio = entry.audioHash ? entry.audioHash : 'N/A';
                 
+                // Highlight anomalies in red
+                const canvasStyle = canvas === 999999999 ? "color:#ef4444; font-weight:bold;" : "color:#38bdf8;";
+                const audioStyle = audio === 888888888 ? "color:#ef4444; font-weight:bold;" : "color:#a855f7;";
+
                 row.innerHTML = `
                     <td>${entry.time}</td>
                     <td class="${statusClass} font-bold">${typeLabel}</td>
                     <td style="color:#fbbf24">${rhythm}</td>
-                    <td style="color:#a855f7; font-family:monospace;">${entropy}</td>
-                    <td>${reqTime}</td>
+                    <td style="${canvasStyle} font-family:monospace;">${canvas}</td>
+                    <td style="${audioStyle} font-family:monospace;">${audio}</td>
                     <td class="font-mono text-small">${entry.reason}</td>
                 `;
                 tbody.appendChild(row);

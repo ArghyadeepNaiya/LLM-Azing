@@ -8,7 +8,9 @@ const ThreatShield = {
     pollingRate: 0,
     typingRhythm: 0,   
     browserEntropy: 0, 
-    requestTiming: 0,  
+    requestTiming: 0,
+    canvasHash: 0,     
+    audioHash: 0,      // NEW: Audio Processing Fingerprint
     
     lastCoords: null,
     lastMouseTime: 0,
@@ -20,11 +22,67 @@ const ThreatShield = {
   movementLog: [],
   startTime: performance.now(),
 
+  generateCanvasHash: function() {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.textBaseline = "top";
+    ctx.font = "14px 'Arial'";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#f60";
+    ctx.fillRect(125, 1, 62, 20);
+    ctx.fillStyle = "#069";
+    ctx.fillText("ThreatShield", 2, 15);
+    ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+    ctx.fillText("ThreatShield", 4, 17);
+    
+    const dataURI = canvas.toDataURL();
+    let hash = 0;
+    for (let i = 0; i < dataURI.length; i++) {
+        hash = ((hash << 5) - hash) + dataURI.charCodeAt(i);
+        hash |= 0; 
+    }
+    return Math.abs(hash);
+  },
+
+  // NEW: Generates a silent audio wave and hashes how the browser mathematically compresses it
+  generateAudioHash: async function() {
+    try {
+        const AudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        const context = new AudioContext(1, 44100, 44100);
+        const oscillator = context.createOscillator();
+        oscillator.type = "triangle";
+        oscillator.frequency.value = 10000;
+        
+        const compressor = context.createDynamicsCompressor();
+        compressor.threshold.value = -50;
+        compressor.knee.value = 40;
+        compressor.ratio.value = 12;
+        compressor.attack.value = 0;
+        compressor.release.value = 0.25;
+
+        oscillator.connect(compressor);
+        compressor.connect(context.destination);
+        oscillator.start(0);
+
+        const buffer = await context.startRendering();
+        const data = buffer.getChannelData(0);
+        let hash = 0;
+        for (let i = 4500; i < 5000; i++) {
+            hash += Math.abs(data[i]);
+        }
+        return Math.floor(hash * 10000000);
+    } catch (e) {
+        return 0; // Audio API blocked or unavailable
+    }
+  },
+
   init: function () {
-    // 1. Wrap DOM interactions in an event listener so it doesn't crash before HTML loads
-    document.addEventListener("DOMContentLoaded", () => {
+    document.addEventListener("DOMContentLoaded", async () => {
       
-      // Calculate Browser Entropy
+      // Hardware & Browser Fingerprinting
+      this.telemetry.canvasHash = this.generateCanvasHash();
+      this.telemetry.audioHash = await this.generateAudioHash(); // Fetch Audio Hash
+      
       const nav = window.navigator;
       const entropyStr = `${nav.userAgent}|${nav.language}|${nav.hardwareConcurrency}|${nav.deviceMemory}|${screen.width}x${screen.height}|${screen.colorDepth}`;
       let hash = 0;
@@ -34,11 +92,12 @@ const ThreatShield = {
       }
       this.telemetry.browserEntropy = Math.abs(hash);
       
-      // Now it's safe to update the UI
-      document.getElementById("hud-entropy").innerText = this.telemetry.browserEntropy;
-      document.getElementById("ui-entropy").innerText = this.telemetry.browserEntropy;
+      const hudEntropy = document.getElementById("hud-entropy");
+      const uiEntropy = document.getElementById("ui-entropy");
+      if(hudEntropy) hudEntropy.innerText = this.telemetry.browserEntropy;
+      if(uiEntropy) uiEntropy.innerText = this.telemetry.browserEntropy;
 
-      // 2. Track Typing Rhythm
+      // Typing Rhythm
       const inputs = document.querySelectorAll(".auth-input");
       inputs.forEach(input => {
         input.addEventListener("keydown", (e) => {
@@ -61,12 +120,10 @@ const ThreatShield = {
       this.attachToScraperTraps();
     });
 
-    // 3. Passive Signal Listener
     window.addEventListener("resize", () => {
       this.telemetry.resizeEvents++;
     });
 
-    // 4. Mouse Tracking
     document.addEventListener("mousemove", (e) => {
       this.telemetry.mouseMovements++;
 
@@ -95,14 +152,12 @@ const ThreatShield = {
       }
       this.telemetry.lastCoords = { x: e.clientX, y: e.clientY };
 
-      // Safely update HUD and Sidebar
       const hudX = document.getElementById("hud-x");
       if (hudX) {
         hudX.innerText = e.clientX;
         document.getElementById("hud-y").innerText = e.clientY;
         document.getElementById("hud-polling").innerText = this.telemetry.pollingRate.toFixed(1);
         
-        // This makes the sidebar "Mouse Events" number tick up actively!
         const uiMouse = document.getElementById("ui-mouse");
         if (uiMouse) uiMouse.innerText = this.telemetry.mouseMovements;
       }
@@ -121,8 +176,10 @@ const ThreatShield = {
         const statusText = document.getElementById("status-text");
         const statusDisplay = document.getElementById("status-display");
         
-        statusText.innerText = "Analyzing Telemetry...";
-        statusText.style.color = "#38bdf8";
+        if(statusText) {
+            statusText.innerText = "Analyzing Telemetry...";
+            statusText.style.color = "#38bdf8";
+        }
         
         try {
           let response = await fetch("http://127.0.0.1:8000/analyze", {
@@ -137,7 +194,9 @@ const ThreatShield = {
                 pollingRate: this.telemetry.pollingRate,
                 typingRhythm: this.telemetry.typingRhythm,
                 browserEntropy: this.telemetry.browserEntropy,
-                requestTiming: this.telemetry.requestTiming
+                requestTiming: this.telemetry.requestTiming,
+                canvasHash: this.telemetry.canvasHash,
+                audioHash: this.telemetry.audioHash  // SENDING AUDIO HASH
             }),
           });
           
@@ -145,9 +204,11 @@ const ThreatShield = {
           let result = await response.json();
           
           if (result.is_bot) {
-            statusText.innerText = "🚨 FRAUD BLOCKED 🚨";
-            statusText.style.color = "#ef4444";
-            statusDisplay.style.borderColor = "#ef4444";
+            if(statusText) {
+                statusText.innerText = "🚨 FRAUD BLOCKED 🚨";
+                statusText.style.color = "#ef4444";
+                statusDisplay.style.borderColor = "#ef4444";
+            }
             btn.disabled = true;
             
             // Deploy Active Defense Trap
@@ -155,18 +216,24 @@ const ThreatShield = {
                 CounterStrike.deployTrap();
             }
           } else if (result.is_good_bot) {
-            statusText.innerText = "🤖 GOOD BOT VERIFIED";
-            statusText.style.color = "#22c55e";
-            statusDisplay.style.borderColor = "#22c55e";
+            if(statusText) {
+                statusText.innerText = "🤖 GOOD BOT VERIFIED";
+                statusText.style.color = "#22c55e";
+                statusDisplay.style.borderColor = "#22c55e";
+            }
           } else {
-            statusText.innerText = "✅ TRANSACTION APPROVED";
-            statusText.style.color = "#22c55e";
-            statusDisplay.style.borderColor = "#22c55e";
+            if(statusText) {
+                statusText.innerText = "✅ TRANSACTION APPROVED";
+                statusText.style.color = "#22c55e";
+                statusDisplay.style.borderColor = "#22c55e";
+            }
           }
         } catch (e) {
           console.error("Telemetry Error:", e);
-          statusText.innerText = "❌ CONNECTION ERROR";
-          statusText.style.color = "#ef4444";
+          if(statusText) {
+              statusText.innerText = "❌ CONNECTION ERROR";
+              statusText.style.color = "#ef4444";
+          }
         }
       });
     });
